@@ -90,7 +90,7 @@ The notebook covers:
 
 ## 📁 Project Structure
 ```
-nyc-food-safety-ml/
+nyc-food-safety-grade-prediction/
 │
 ├── NYC_Food_Safety_Inspection_Grade_Prediction.ipynb  # Main notebook
 ├── README.md                                           # Documentation
