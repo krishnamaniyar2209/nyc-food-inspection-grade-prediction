@@ -7,7 +7,7 @@
 ![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
 ![University](https://img.shields.io/badge/Pace%20University-CS677-blue)
 
-> A machine learning final project that predicts the **food safety inspection grade (A, B, or C)** assigned to NYC food establishments using multiple classification algorithms — built for CS677: Machine Learning at Pace University (Fall 2025).
+> A machine learning project predicting the **food safety inspection grade (A / B / C)** of NYC establishments by comparing 6 classifiers, with rich feature engineering, GridSearchCV tuning, and an honest analysis of overfitting and target leakage — built for CS677: Machine Learning at Pace University (Fall 2025).
 
 ---
 
@@ -18,6 +18,7 @@
 - [Project Structure](#-project-structure)
 - [Methodology](#-methodology)
 - [Models & Results](#-models--results)
+- [Important Limitation — Target Leakage](#-important-limitation--target-leakage)
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Key Findings](#-key-findings)
@@ -29,62 +30,44 @@
 
 ## 🔬 Overview
 
-This project applies and compares **6 Machine Learning classification algorithms** on the NYC Food Safety Inspections dataset. The goal is to predict whether a food establishment will receive a Grade A, B, or C on their health inspection.
+This project applies and compares **6 machine learning classification algorithms** on the NYC Food Safety Inspections dataset to predict whether an establishment receives Grade A, B, or C — covering EDA, feature engineering, stratified splitting, model comparison, SGD optimization, and hyperparameter tuning.
 
 The notebook covers:
-- ✅ **Problem Statement** — Multiclass classification (A / B / C)
-- ✅ **EDA** — 8 separate visualizations covering distribution, geography, time series, grade by type, grade by county, grade by year, and correlations
-- ✅ **Feature Engineering** — 8 new engineered features from raw columns
-- ✅ **Train/Validation/Test Split** — Stratified 60/20/20 split
-- ✅ **5 ML Models** — Decision Tree, Random Forest, LR, SVM Linear, SVM RBF
-- ✅ **SGD Optimizer** — Incremental gradient descent with error tracking over 100 epochs
-- ✅ **Hyperparameter Tuning** — GridSearchCV on Decision Tree and Random Forest
-- ✅ **Full Evaluation** — Accuracy, Precision, Recall, F1, Confusion Matrices, Classification Reports
-- ✅ **Model Comparison** — Summary table, bar charts, train vs test analysis
+- ✅ **Problem Statement** — multiclass classification (A / B / C)
+- ✅ **EDA** — 8 visualizations (distribution, geography, time series, grade by type/county/year, correlations)
+- ✅ **Feature Engineering** — 8 engineered features
+- ✅ **Stratified 60/20/20 train/validation/test split**
+- ✅ **5 models** — Decision Tree, Random Forest, Logistic Regression, SVM (Linear + RBF)
+- ✅ **SGD optimizer** — incremental gradient descent over 100 epochs
+- ✅ **GridSearchCV tuning** on Decision Tree and Random Forest
+- ✅ **Full evaluation** — Accuracy, Precision, Recall, F1, confusion matrices
 
 ---
 
 ## 📊 Dataset
 
-**Source:** NYC Open Data — Food Safety Inspections Current Ratings
+**Source:** NYC Open Data — Food Safety Inspections (Current Ratings)
 
 | Property | Details |
 |---|---|
 | Original Records | ~137,000 |
 | Sampled Records | 41,075 (30%) |
-| Raw Features | 13 |
-| Engineered Features | 8 additional |
-| Total Features Used | 14 |
+| Features Used | 14 (6 raw + 8 engineered) |
 | Target | `Inspection Grade` (A / B / C) |
 | Class Balance | C: 52.66% / B: 24.32% / A: 23.01% |
 | Date Range | 2023 – 2025 |
-| Missing Values | Deficiency cols: 23.0%, Georeference: 0.53% |
-
-### Raw Feature Descriptions
-
-| Feature | Type | Description |
-|---|---|---|
-| `County` | Categorical | County of the establishment |
-| `Inspection Grade` | **Target** | A, B, or C |
-| `Inspection Date` | Date | Date of the inspection |
-| `Establishment Types` | Categorical | Type code of the establishment |
-| `Trade Name` | Categorical | Business name |
-| `Street` | Categorical | Street address |
-| `City` | Categorical | City |
-| `Zip Code` | Numerical | ZIP code |
-| `Georeference` | Geo | GPS coordinates (POINT format) |
 
 ### Engineered Features
 
-| Feature | Description | Importance |
+| Feature | Description | RF Importance |
 |---|---|---|
-| `Failure_Rate` | Historical Grade C rate per establishment | **44.9%** ⭐ |
-| `Previous_Grade_Encoded` | Encoded previous inspection grade | **28.0%** ⭐ |
+| `Failure_Rate` | Establishment's historical Grade-C rate | 44.9% ⚠️ *(see Limitations)* |
+| `Previous_Grade_Encoded` | Prior inspection grade (lag) | 28.0% |
 | `Total_Inspections` | Cumulative inspection count | 9.8% |
-| `Days_Since_Last` | Days between inspections | 7.9% |
+| `Days_Since_Last` | Days since previous inspection | 7.9% |
 | `Longitude` / `Latitude` | Extracted from Georeference | 3.5% |
-| `Has_Multiple_Types` | Length of establishment type string | 1.2% |
-| `Is_NYC` | 1 if NYC borough, 0 otherwise | 1.1% |
+| `Has_Multiple_Types` | Establishment type-string length | 1.2% |
+| `Is_NYC` | 1 if NYC borough | 1.1% |
 
 ---
 
@@ -101,86 +84,29 @@ nyc-food-inspection-grade-prediction/
 
 ## 🔬 Methodology
 
-### Step 1 — Exploratory Data Analysis (8 visualizations)
-- Target variable distribution (bar + pie chart)
-- Establishment types analysis (top 15)
-- Geographic distribution (county and city)
-- Time series — monthly and yearly inspection volume
-- Grade distribution by establishment type
-- Grade distribution by county
-- Grade distribution by year
-- Correlation heatmap of numerical features
-
-### Step 2 — Feature Engineering
-8 new features created:
-- `Has_Multiple_Types`, `Is_NYC` — domain knowledge flags
-- `Longitude`, `Latitude` — extracted from POINT coordinates
-- `Previous_Grade` — lag feature per establishment
-- `Days_Since_Last` — time since last inspection
-- `Total_Inspections` — cumulative count per establishment
-- `Failure_Rate` — historical Grade C proportion per establishment
-
-### Step 3 — Data Splitting (Stratified)
-```
-Total (41,075) → 80% temp + 20% test
-temp           → 75% train + 25% val
-────────────────────────────────────
-Training set   : 24,645 samples (60%)
-Validation set :  8,215 samples (20%)
-Test set       :  8,215 samples (20%)
-```
-
-### Step 4 — Feature Scaling
-`StandardScaler` fitted on training data only — preventing data leakage when applied to validation and test sets.
-
-### Step 5 — Model Training
-5 models trained with default parameters. Train, Validation, and Test accuracy tracked for all.
-
-### Step 6 — SGD Optimizer
-`SGDClassifier` with `partial_fit()` for true incremental gradient descent over 100 epochs with accuracy and error tracking plots.
-
-### Step 7 — Hyperparameter Tuning (GridSearchCV)
-
-**Decision Tree:**
-```python
-param_grid = {
-    'max_depth'        : [5, 10, 15, 20],
-    'min_samples_split': [10, 20, 50],
-    'min_samples_leaf' : [5, 10]
-}
-# Best: max_depth=10, min_samples_leaf=10, min_samples_split=50
-# Best CV Score: 0.9159
-```
-
-**Random Forest:**
-```python
-param_grid = {
-    'n_estimators': [100, 150, 200],
-    'max_depth'   : [10, 20, None]
-}
-# Best: max_depth=10, n_estimators=200
-# Best CV Score: 0.9139
-```
-
-### Step 8 — Evaluation
-All models evaluated on Accuracy, Precision, Recall, F1-Score with Confusion Matrices and Classification Reports.
+1. **EDA** — 8 visualizations of distribution, geography, time series, and grade breakdowns
+2. **Feature Engineering** — 8 features (history, geography, timing, domain flags)
+3. **Stratified split** — 60% train (24,645) / 20% val (8,215) / 20% test (8,215)
+4. **Scaling** — `StandardScaler` fit on training data only
+5. **Model training** — 5 classifiers with default parameters, tracking train/val/test accuracy
+6. **SGD** — `partial_fit()` over 100 epochs with error tracking
+7. **Tuning** — `GridSearchCV` on Decision Tree and Random Forest
+8. **Evaluation** — Accuracy, Precision, Recall, F1, confusion matrices, classification reports
 
 ---
 
 ## 📈 Models & Results
 
 ### Default Model Performance
-
 | Model | Train Acc | Val Acc | Test Acc | Status |
 |---|---|---|---|---|
 | Decision Tree | 0.9999 | 0.8816 | 0.8889 | ⚠️ Overfitting |
-| Random Forest | 0.9999 | 0.9108 | 0.9100 | ✅ Good Fit |
-| Logistic Regression | 0.8707 | 0.8676 | 0.8684 | ✅ Good Fit |
-| SVM RBF | 0.8456 | 0.8329 | 0.8398 | ✅ Good Fit |
-| SVM Linear | 0.7919 | 0.7928 | 0.7877 | ✅ Good Fit |
+| Random Forest | 0.9999 | 0.9108 | 0.9100 | ✅ Good fit |
+| Logistic Regression | 0.8707 | 0.8676 | 0.8684 | ✅ Good fit |
+| SVM RBF | 0.8456 | 0.8329 | 0.8398 | ✅ Good fit |
+| SVM Linear | 0.7919 | 0.7928 | 0.7877 | ✅ Good fit |
 
-### Cross-Validation Results (5-Fold Stratified)
-
+### Cross-Validation (5-Fold Stratified)
 | Model | CV Mean | CV Std |
 |---|---|---|
 | Random Forest | 0.9111 | 0.0037 |
@@ -189,154 +115,105 @@ All models evaluated on Accuracy, Precision, Recall, F1-Score with Confusion Mat
 | SVM RBF | 0.8672 | 0.0160 |
 | SVM Linear | 0.7309 | 0.0709 |
 
-### Final Model Performance (After Tuning)
-
-| Rank | Model | Accuracy | Precision | Recall | F1-Score |
+### Final Performance (After Tuning)
+| Rank | Model | Accuracy | Precision | Recall | F1 |
 |---|---|---|---|---|---|
-| 🥇 1 | **Decision Tree (Tuned)** | **0.9110** | **0.9186** | **0.9110** | **0.9101** |
-| 🥈 2 | Random Forest (Tuned) | 0.9099 | 0.9168 | 0.9099 | 0.9088 |
-| 3 | Logistic Regression | 0.8684 | 0.8700 | 0.8684 | 0.8680 |
-| 4 | SGD | 0.8696 | — | — | — |
-| 5 | SVM RBF | 0.8398 | — | — | — |
-| 6 | SVM Linear | 0.7877 | — | — | — |
+| 🥇 1 | **Decision Tree (Tuned)** | 0.9110 | 0.9186 | 0.9110 | 0.9101 |
+| 🥈 2 | Random Forest (Tuned) | 0.9099 | 0.9183 | 0.9099 | 0.9084 |
+| 3 | SGD | 0.8696 | 0.8705 | 0.8696 | 0.8675 |
+| 4 | Logistic Regression | 0.8684 | 0.8707 | 0.8684 | 0.8669 |
+| 5 | SVM RBF | 0.8398 | 0.8343 | 0.8398 | 0.8365 |
+| 6 | SVM Linear | 0.7877 | 0.7979 | 0.7877 | 0.7905 |
 
-### Hyperparameter Tuning Impact
-
-| Model | Before Tuning | After Tuning | Improvement |
-|---|---|---|---|
-| Decision Tree | 0.8889 | 0.9110 | +2.21% ✅ |
-| Random Forest | 0.9100 | 0.9099 | ~0.00% (already optimal) |
-
-### Per-Class Performance (Best Model — Decision Tree Tuned)
-
-| Grade | Precision | Recall | F1-Score | Support |
-|---|---|---|---|---|
-| Grade A | 0.77 | 0.93 | 0.84 | 1,890 |
-| Grade B | 0.95 | 0.74 | 0.83 | 1,998 |
-| Grade C | 0.97 | 0.98 | 0.98 | 4,327 |
-| **Weighted Avg** | **0.92** | **0.91** | **0.91** | **8,215** |
-
-### SGD Optimizer Results
-
-| Metric | Value |
-|---|---|
-| Final Train Accuracy | 0.8731 |
-| Final Test Accuracy | 0.8696 |
-| Epochs | 100 |
-| Learning Rate | 0.01 (constant) |
+> GridSearchCV (`max_depth=10, min_samples_leaf=10, min_samples_split=50`) cut Decision Tree train accuracy from 0.9999 → 0.93 while holding test accuracy at 0.9110 — resolving the overfitting seen in the default tree.
 
 ### Top Feature Importances (Random Forest)
-
 | Rank | Feature | Importance |
 |---|---|---|
-| 1 | `Failure_Rate` | 44.89% |
+| 1 | `Failure_Rate` | 44.89% ⚠️ |
 | 2 | `Previous_Grade_Encoded` | 27.98% |
 | 3 | `Total_Inspections` | 9.81% |
 | 4 | `Days_Since_Last` | 7.91% |
-| 5 | `Longitude` | 1.88% |
-| 6 | `Latitude` | 1.59% |
-| 7 | `Has_Multiple_Types` | 1.20% |
-| 8 | `Establishment_Encoded` | 1.11% |
+
+---
+
+## ⚠️ Important Limitation — Target Leakage
+
+The strongest feature, `Failure_Rate`, is computed as each establishment's share of Grade-C inspections **including the inspection being predicted**:
+
+```python
+df.groupby(['Trade Name','Street'])['Inspection Grade'].agg(lambda x: (x == 'C').sum() / len(x))
+```
+
+For an establishment with a single inspection this equals **1.0 for a C and 0.0 otherwise** — effectively encoding the target. Combined with a **random row-level train/test split** (the same establishment can appear in both train and test), this leaks label information and **inflates the reported ~91% accuracy**; `Failure_Rate`'s 44.9% importance largely reflects this leak.
+
+**A leakage-free version (in progress) will:**
+1. Compute `Failure_Rate` from **prior inspections only** (expanding C-rate shifted by one), so the current grade is excluded.
+2. Split by **establishment** (`GroupShuffleSplit`) or by **time**, so no establishment spans train and test.
+
+Honest accuracy is expected to be lower, with `Previous_Grade` (a legitimate backward-looking lag) carrying more of the real signal. *(Leaving this analysis in the README intentionally — identifying leakage is part of the work.)*
 
 ---
 
 ## ⚙️ Installation
 
-### Prerequisites
-- Python 3.10 or higher
-- pip
-
-### Clone & Setup
 ```bash
-# Clone the repository
-git clone https://github.com/krishnamaniyar2209/nyc-food-safety-ml.git
-
-# Navigate to the folder
-cd nyc-food-safety-ml
-
-# Install dependencies
+git clone https://github.com/krishnamaniyar2209/nyc-food-inspection-grade-prediction.git
+cd nyc-food-inspection-grade-prediction
 pip install -r requirements.txt
-
-# Launch Jupyter Notebook
 jupyter notebook NYC_Food_Safety_Inspection_Grade_Prediction.ipynb
-```
-
-### requirements.txt
-```
-pandas>=1.5.0
-numpy>=1.23.0
-matplotlib>=3.6.0
-seaborn>=0.12.0
-scikit-learn>=1.1.0
-jupyter>=1.0.0
-ipykernel>=6.0.0
 ```
 
 ---
 
 ## 🚀 Usage
 
-1. Download the dataset from NYC Open Data and save as:
-```
-Food_Safety_Inspections_–_Current_Ratings_20251215.csv
-```
-2. Upload to Google Colab or place in the same folder as the notebook
-3. Update the file path in Cell 3 if needed:
-```python
-df = pd.read_csv("/content/Food_Safety_Inspections_–_Current_Ratings_20251215.csv")
-```
-4. Run all cells sequentially from top to bottom
-5. All EDA plots, metrics, confusion matrices, and comparisons generate automatically
+1. Download the dataset from NYC Open Data (Food Safety Inspections — Current Ratings) as a `.csv`
+2. Open the notebook in Jupyter or Google Colab and update the file path in **Cell 3**
+3. Run all cells sequentially — all EDA plots, metrics, and comparisons generate automatically
 
 ---
 
 ## 💡 Key Findings
 
-- **Grade C dominates** at 52.66% — class imbalance is present but handled via stratified splits
-- **Failure Rate** (44.9%) and **Previous Grade** (28.0%) are by far the most important predictors — an establishment's history strongly determines its future grade
-- **Kings (Brooklyn) and Bronx** have the highest Grade C rates among counties (64%)
-- **CDK, ABCH, CD, and B** establishment types have Grade C rates above 70%
-- **Decision Tree (Tuned)** achieved the best overall performance with 91.10% accuracy after GridSearchCV eliminated overfitting (from 99.99% → 91.10% train accuracy)
-- **Random Forest** had the most stable cross-validation (lowest std: 0.0037) confirming ensemble robustness
-- **SVM Linear** had the lowest accuracy (78.77%) — confirms non-linear relationships exist in the data
-- **SVM RBF** outperformed Linear SVM — the RBF kernel better captures the non-linearity
-- **SGD** converged quickly within ~20 epochs reaching stable 87% accuracy
-- **Hyperparameter tuning** improved Decision Tree by +2.21% while Random Forest was already near-optimal
-- **Grade C is predicted most accurately** (F1=0.98) due to class majority; Grade A and B are harder to distinguish
+- **Grade C dominates** at 52.66% — class imbalance handled via stratified splits
+- **Kings (Brooklyn)** and **Bronx** have the highest Grade-C rates (~64%); **Suffolk** and **Monroe** the lowest
+- **`Previous_Grade`** (a legitimate lag feature) is a genuinely strong predictor — an establishment's prior grade meaningfully predicts its next
+- **Decision Tree (Tuned)** scored 0.9110 test accuracy and GridSearchCV resolved the default tree's overfitting (train 0.9999 → 0.93)
+- **Random Forest** had the most stable CV (std 0.0037)
+- **SVM RBF > SVM Linear** — confirming non-linear structure in the data
+- ⚠️ **The 91% headline is optimistic due to `Failure_Rate` leakage** (see Limitations) — the corrected pipeline is the honest benchmark
 
 ---
 
 ## 🛠️ Technologies Used
 
-| Tool | Version | Purpose |
-|---|---|---|
-| [Python](https://python.org) | 3.10+ | Core language |
-| [scikit-learn](https://scikit-learn.org/) | Latest | All ML models, metrics, GridSearchCV |
-| [pandas](https://pandas.pydata.org/) | Latest | Data manipulation |
-| [NumPy](https://numpy.org/) | Latest | Numerical operations |
-| [Matplotlib](https://matplotlib.org/) | Latest | Plotting |
-| [Seaborn](https://seaborn.pydata.org/) | Latest | Statistical visualization |
-| [Jupyter](https://jupyter.org/) | Latest | Development environment |
+| Tool | Purpose |
+|---|---|
+| Python 3.10+ | Core language |
+| scikit-learn | Models, metrics, GridSearchCV |
+| pandas / NumPy | Data manipulation |
+| Matplotlib / Seaborn | Visualization |
+| Jupyter Notebook | Development environment |
 
 ---
 
 ## 👤 Author
 
-**Krishna Maniyar**
-- 🎓 Pace University — Seidenberg School of CSIS
-- 📘 CS677: Machine Learning (CRN: 72828) | Fall 2025
-- 🔗 [GitHub](https://github.com/krishnamaniyar2209)
+**Krishna Maniyar** — Data Analyst
+- 🎓 Pace University — Seidenberg School of CSIS, MS in Data Science
+- 📘 CS677: Machine Learning (Fall 2025)
+- 📧 krishnamaniyarkm22@gmail.com
+- 🔗 [GitHub](https://github.com/krishnamaniyar2209) · [LinkedIn](https://www.linkedin.com/in/krishnamaniyar/) · [Portfolio](https://krishnamaniyar2209.github.io/)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
 <p align="center">
   Made with ❤️ for CS677 @ Pace University
-  <br><br>
-  <img src="https://img.shields.io/badge/Pace%20University-Seidenberg%20School%20of%20CSIS-blue" />
 </p>
